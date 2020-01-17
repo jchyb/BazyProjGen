@@ -43,6 +43,7 @@ CREATE TABLE Conference_Day_Attendee_Reservations (
     AttendeeID int  NOT NULL,
     ViaConferenceDayCustomerReservation int  NOT NULL,
     ConferenceDayAttendeeReservationID int  NOT NULL IDENTITY(1,1),
+    CONSTRAINT Unique_Reservation UNIQUE (AttendeeID,ViaConferenceDayCustomerReservation),
     CONSTRAINT Conference_Day_Attendee_Reservations_pk PRIMARY KEY  (ConferenceDayAttendeeReservationID)
 );
 
@@ -211,14 +212,72 @@ BEGIN
 INSERT INTO Attendees(ByCustomer,FirstName, LastName, IsStudent) VALUES(@ByCustomer, @FirstName, @LastName, @IsStudent)
 END;
 
+CREATE PROCEDURE new_workshop (
+@WorkshopDate date,
+@StartTime time(0),
+@EndTime time(0),
+@PricePerPerson int,
+@AttendeeLimit int,
+@WorkshopName varchar(20)
+)
+AS
+BEGIN
+INSERT INTO Workshop(WorkshopDate, StartTime, EndTime, PricePerPerson, AttendeeLimit, WorkshopName)
+VALUES(@WorkshopDate, @StartTime, @EndTime, @PricePerPerson, @AttendeeLimit, @WorkshopName)
+END;
+
+CREATE PROCEDURE new_customer_conference_day_reservation(
+@ConferenceDay date,
+@CustomerID int,
+@AttendeeAmount int,
+@ReservationDate date,
+@WasPaid bit
+)
+AS
+BEGIN
+INSERT INTO Conference_Day_Customer_Reservations(ConferenceDay, CustomerID, AttendeeAmount, ReservationDate, WasPaid)
+VALUES(@ConferenceDay, @CustomerID, @AttendeeAmount, @ReservationDate, @WasPaid)
+END;
+
+CREATE PROCEDURE new_attendee_conference_day_reservation(
+@AttendeeID int,
+@ViaConferenceDayCustomerReservation int
+)
+AS
+BEGIN
+INSERT INTO Conference_Day_Attendee_Reservations(AttendeeID, ViaConferenceDayCustomerReservation)
+VALUES (@AttendeeID, @ViaConferenceDayCustomerReservation)
+END;
+
+CREATE PROCEDURE new_workshop_attendee_reservation(
+@ViaConferenceDayAttendeeReservation int,
+@WorkshopID int,
+@WasPaid bit
+)
+AS
+BEGIN
+INSERT INTO Workshop_Attendee_Reservations(ViaConferenceDayAttendeeReservation, WorkshopID, WasPaid)
+VALUES (@ViaConferenceDayAttendeeReservation,@WorkshopID, @WasPaid)
+END;
+
 new_conference "tmp", "12/10/12", "12.12.12";
 
 new_conference_day 1, "12/10/12", 20, 45
 
 new_company "tmp", "123456789";
 
-new_private_individual "Jan", "Chyb", "123415512"
+new_private_individual "Stanis³aw", "Denkowski", "123415512"
 
 new_attendee 2, "Ala", "Kota", 1
+
+new_workshop "12/10/12", "10:30:00", "12:00:00", 20, 35, "Programowanie W Grze Minecraft"
+
+new_customer_conference_day_reservation "12/10/12", 2, 3, "12/9/12", 1
+
+new_attendee_conference_day_reservation 1, 1
+
+new_workshop_attendee_reservation 1, 1, 0
+
+
 -- End of file.
 
