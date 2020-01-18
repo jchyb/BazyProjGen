@@ -387,6 +387,37 @@ GO
 --print dbo.func_conference_free_places('2012-12-10')
 
 
+--Views
+CREATE OR ALTER VIEW Customer_Reservation_Discount AS
+(SELECT CustomerReservationID,DATEDIFF(day, ReservationDate, ConferenceDay) as diff,
+CASE
+	WHEN DATEDIFF(day, ReservationDate, ConferenceDay) >= 14 THEN 0.1
+	WHEN DATEDIFF(day , Reservationdate, ConferenceDay) >=7 THEN 0.05
+	ELSE 0
+END
+AS Discount
+FROM Conference_Day_Customer_Reservations cdcr
+)
+
+CREATE OR ALTER VIEW Attendee_Reservation_Value AS
+  (SELECT ViaConferenceDayCustomerReservation, cdar.AttendeeID, IsStudent,
+  (1-Discount)*(0.9*CAST(BasePricePerPerson AS FLOAT) * IsStudent + BasePricePerPerson*(1-IsStudent)) AS ReservationValue
+  FROM Conference_Day_Attendee_Reservations cdar
+  INNER JOIN Attendees a ON cdar.AttendeeID = a.AttendeeID
+  INNER JOIN Conference_Day_Customer_Reservations cdcr ON cdcr.CustomerReservationID = cdar.ViaConferenceDayCustomerReservation
+  INNER JOIN Conference_Day cd ON cd.ConferenceDate = cdcr.ConferenceDay
+  Inner JOIN Customer_Reservation_Discount crd ON crd.CustomerReservationID = cdcr.CustomerReservationID
+)
+
+CREATE OR ALTER VIEW Conference_Payments AS
+  (SELECT CustomerID, ConferenceDay, SUM(ReservationValue) AS ResrvationValue
+  FROM Conference_Day_Customer_Reservations cdcr
+  INNER JOIN Attendee_Reservation_Value crv ON cdcr.CustomerReservationID = crv.ViaConferenceDayCustomerReservation
+  WHERE WasPaid = 1
+  GROUP BY CustomerID, ConferenceDay
+)
+
+--Functions
 CREATE OR ALTER FUNCTION func_workshop_free_places(@WorkshopDay date)
     RETURNS int
 AS
@@ -474,7 +505,6 @@ BEGIN
         END
 END
 GO
-
 CREATE OR ALTER TRIGGER trig_not_enough_places_workshop
     ON Workshop_Attendee_Reservations
     AFTER INSERT
@@ -521,6 +551,7 @@ GO
 -- proc_new_workshop_attendee_reservation 1, 2, 0
 -- GO
 
+
 CREATE OR ALTER TRIGGER trig_attendee_mentioned_by_customer
     ON Conference_Day_Attendee_Reservations
     AFTER INSERT
@@ -538,6 +569,12 @@ BEGIN
         END
 END
 GO
+
+
+--SELECT * from Attendee_Reservation_Value
+--SELECT * from Conference_Payments
+--SELECT * from Customer_Reservation_Discount
+
 -- proc_new_attendee 1, 'pan', 'zly', 0
 -- GO
 -- proc_new_attendee_conference_day_reservation 2, 1
