@@ -3,25 +3,25 @@
 
 
 --Dropping
-  IF OBJECT_ID('dbo.Workshop_Attendee_Reservations', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Workshop_Attendee_Reservations', 'U') IS NOT NULL
     DROP TABLE dbo.Workshop_Attendee_Reservations
-  IF OBJECT_ID('dbo.Conference_Day_Attendee_Reservations', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Conference_Day_Attendee_Reservations', 'U') IS NOT NULL
     DROP TABLE dbo.Conference_Day_Attendee_Reservations
-  IF OBJECT_ID('dbo.Conference_Day_Customer_Reservations', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Conference_Day_Customer_Reservations', 'U') IS NOT NULL
     DROP TABLE dbo.Conference_Day_Customer_Reservations
-  IF OBJECT_ID('dbo.Workshop', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Workshop', 'U') IS NOT NULL
     DROP TABLE dbo.Workshop
-  IF OBJECT_ID('dbo.Conference_Day', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Conference_Day', 'U') IS NOT NULL
     DROP TABLE dbo.Conference_Day
-  IF OBJECT_ID('dbo.Conference', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Conference', 'U') IS NOT NULL
     DROP TABLE dbo.Conference
-  IF OBJECT_ID('dbo.Private_Individuals', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Private_Individuals', 'U') IS NOT NULL
     DROP TABLE dbo.Private_Individuals
-  IF OBJECT_ID('dbo.Companies', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Companies', 'U') IS NOT NULL
     DROP TABLE dbo.Companies
-  IF OBJECT_ID('dbo.Attendees', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Attendees', 'U') IS NOT NULL
     DROP TABLE dbo.Attendees
-  IF OBJECT_ID('dbo.Customers', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.Customers', 'U') IS NOT NULL
     DROP TABLE dbo.Customers
 
 
@@ -78,7 +78,6 @@ CREATE TABLE Conference
     CONSTRAINT ConferenceDateCheck CHECK (StartDate < EndDate),
     CONSTRAINT Conference_pk PRIMARY KEY (ConferenceID)
 );
-
 
 
 -- Table: Conference_Day_Customer_Reservations
@@ -138,7 +137,6 @@ CREATE TABLE Workshop
     CONSTRAINT WorkshopTimeCheck CHECK (StartTime < EndTime),
     CONSTRAINT Workshop_pk PRIMARY KEY (WorkshopID)
 );
-
 
 
 -- foreign keys
@@ -211,6 +209,8 @@ ALTER TABLE Workshop
             REFERENCES Conference_Day (ConferenceDate);
 GO
 
+
+--PROCEDURES
 CREATE OR ALTER PROCEDURE proc_new_conference(@ConferenceName varchar(20),
                                               @StartDate date,
                                               @EndDate date)
@@ -356,6 +356,29 @@ BEGIN
 END
 GO
 
+CREATE OR ALTER PROCEDURE proc_add_conference_day_payment(@ConferenceDay date)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Conference_Day_Customer_Reservations
+    SET WasPaid = 1
+    WHERE ConferenceDay = @ConferenceDay
+END
+GO
+-- dbo.proc_add_conference_day_payment'2012-12-10'
+-- GO
+
+CREATE OR ALTER PROCEDURE proc_add_workshop_payment(@ConferenceDayAttendeeReservationID int)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Workshop_Attendee_Reservations
+    SET WasPaid = 1
+    WHERE ViaConferenceDayAttendeeReservation = @ConferenceDayAttendeeReservationID
+END
+GO
+-- dbo.proc_add_workshop_payment 1
+-- GO
 
 proc_new_conference 'td', '10-12-12', '12-12-12'
 GO
@@ -380,6 +403,50 @@ GO
 -- proc_cancel_customer_conference_day_reservation 1
 -- GO
 
+
+--VIEWS
+CREATE OR ALTER VIEW Customer_Reservation_Discount AS
+(
+SELECT CustomerReservationID,
+       DATEDIFF(day, ReservationDate, ConferenceDay) as diff,
+       CASE
+           WHEN DATEDIFF(day, ReservationDate, ConferenceDay) >= 14 THEN 0.1
+           WHEN DATEDIFF(day, Reservationdate, ConferenceDay) >= 7 THEN 0.05
+           ELSE 0
+           END
+                                                     AS Discount
+FROM Conference_Day_Customer_Reservations cdcr
+    )
+GO
+
+CREATE OR ALTER VIEW Attendee_Reservation_Value AS
+(
+SELECT ViaConferenceDayCustomerReservation,
+       cdar.AttendeeID,
+       IsStudent,
+       (1 - Discount) *
+       (0.9 * CAST(BasePricePerPerson AS FLOAT) * IsStudent + BasePricePerPerson * (1 - IsStudent)) AS ReservationValue
+FROM Conference_Day_Attendee_Reservations cdar
+         INNER JOIN Attendees a ON cdar.AttendeeID = a.AttendeeID
+         INNER JOIN Conference_Day_Customer_Reservations cdcr
+                    ON cdcr.CustomerReservationID = cdar.ViaConferenceDayCustomerReservation
+         INNER JOIN Conference_Day cd ON cd.ConferenceDate = cdcr.ConferenceDay
+         Inner JOIN Customer_Reservation_Discount crd ON crd.CustomerReservationID = cdcr.CustomerReservationID
+    )
+GO
+
+CREATE OR ALTER VIEW Conference_Payments AS
+(
+SELECT CustomerID, ConferenceDay, SUM(ReservationValue) AS ResrvationValue
+FROM Conference_Day_Customer_Reservations cdcr
+         INNER JOIN Attendee_Reservation_Value crv
+                    ON cdcr.CustomerReservationID = crv.ViaConferenceDayCustomerReservation
+WHERE WasPaid = 1
+GROUP BY CustomerID, ConferenceDay
+    )
+GO
+
+
 --FUNCTIONS
 CREATE OR ALTER FUNCTION func_conference_free_places(@ConferenceDay date)
     RETURNS int
@@ -400,41 +467,6 @@ END
 GO
 --print dbo.func_conference_free_places('2012-12-10')
 
-
---Views
-CREATE OR ALTER VIEW Customer_Reservation_Discount AS
-(SELECT CustomerReservationID,DATEDIFF(day, ReservationDate, ConferenceDay) as diff,
-CASE
-	WHEN DATEDIFF(day, ReservationDate, ConferenceDay) >= 14 THEN 0.1
-	WHEN DATEDIFF(day , Reservationdate, ConferenceDay) >=7 THEN 0.05
-	ELSE 0
-END
-AS Discount
-FROM Conference_Day_Customer_Reservations cdcr
-)
-GO
-
-CREATE OR ALTER VIEW Attendee_Reservation_Value AS
-  (SELECT ViaConferenceDayCustomerReservation, cdar.AttendeeID, IsStudent,
-  (1-Discount)*(0.9*CAST(BasePricePerPerson AS FLOAT) * IsStudent + BasePricePerPerson*(1-IsStudent)) AS ReservationValue
-  FROM Conference_Day_Attendee_Reservations cdar
-  INNER JOIN Attendees a ON cdar.AttendeeID = a.AttendeeID
-  INNER JOIN Conference_Day_Customer_Reservations cdcr ON cdcr.CustomerReservationID = cdar.ViaConferenceDayCustomerReservation
-  INNER JOIN Conference_Day cd ON cd.ConferenceDate = cdcr.ConferenceDay
-  Inner JOIN Customer_Reservation_Discount crd ON crd.CustomerReservationID = cdcr.CustomerReservationID
-)
-GO
-
-CREATE OR ALTER VIEW Conference_Payments AS
-  (SELECT CustomerID, ConferenceDay, SUM(ReservationValue) AS ResrvationValue
-  FROM Conference_Day_Customer_Reservations cdcr
-  INNER JOIN Attendee_Reservation_Value crv ON cdcr.CustomerReservationID = crv.ViaConferenceDayCustomerReservation
-  WHERE WasPaid = 1
-  GROUP BY CustomerID, ConferenceDay
-)
-GO
-
---Functions
 CREATE OR ALTER FUNCTION func_workshop_free_places(@WorkshopDay date)
     RETURNS int
 AS
@@ -459,13 +491,13 @@ GO
 CREATE OR ALTER FUNCTION func_workshop_list_for_attendee(@AttendeeID int)
     RETURNS @ReturnTable TABLE
                          (
-                             WorkshopID     int         NOT NULL,
-                             WorkshopDate   date        NOT NULL,
-                             StartTime      time(0)     NOT NULL,
-                             EndTime        time(0)     NOT NULL,
-                             PricePerPerson int         NOT NULL,
-                             AttendeeLimit  int         NOT NULL,
-                             WorkshopName   varchar(20) NOT NULL
+                             WorkshopID     int,
+                             WorkshopDate   date,
+                             StartTime      time(0),
+                             EndTime        time(0),
+                             PricePerPerson int,
+                             AttendeeLimit  int,
+                             WorkshopName   varchar(20)
                          )
 AS
 BEGIN
@@ -483,6 +515,81 @@ END
 GO
 -- SELECT * FROM dbo.func_workshop_list_for_attendee(1)
 -- GO
+
+CREATE OR ALTER FUNCTION func_conference_day_attendees(@ConferenceDate date)
+    RETURNS @ReturnTable TABLE
+                         (
+                             AttendeeID int
+                         )
+AS
+BEGIN
+    INSERT INTO @ReturnTable
+    SELECT AttendeeID
+    FROM Conference_Day_Attendee_Reservations AS cdar
+             JOIN Conference_Day_Customer_Reservations AS cdcr
+                  ON cdar.ViaConferenceDayCustomerReservation = cdcr.CustomerReservationID
+    WHERE cdcr.ConferenceDay = @ConferenceDate
+    RETURN;
+END
+GO
+-- SELECT * FROM dbo.func_conference_day_attendees('2012-12-10')
+-- GO
+
+CREATE OR ALTER FUNCTION func_conference_days(@ConferenceID int)
+    RETURNS @ReturnTable TABLE
+                         (
+                             ConferenceID       int,
+                             ConferenceDate     date,
+                             AttendeeLimit      int,
+                             BasePricePerPerson int
+                         )
+AS
+BEGIN
+    INSERT INTO @ReturnTable
+    SELECT *
+    FROM Conference_Day AS cd
+    WHERE @ConferenceID = cd.ConferenceID
+    RETURN;
+END
+GO
+-- SELECT * FROM dbo.func_conference_days(1)
+-- GO
+
+CREATE OR ALTER FUNCTION func_workshop_list_by_conference(@ConferenceID int)
+    RETURNS @ReturnTable TABLE
+                         (
+                             WorkshopID int
+                         )
+AS
+BEGIN
+    INSERT INTO @ReturnTable
+    SELECT w.WorkshopID
+    FROM Workshop AS w
+             JOIN Conference_Day AS cd ON w.WorkshopDate = cd.ConferenceDate
+    WHERE cd.ConferenceID = @ConferenceID
+    RETURN;
+END
+GO
+--SELECT * FROM dbo.func_workshop_list_by_conference(1)
+--GO
+
+CREATE OR ALTER FUNCTION func_workshop_list_by_day(@Day date)
+    RETURNS @ReturnTable TABLE
+                         (
+                             WorkshopID int
+                         )
+AS
+BEGIN
+    INSERT INTO @ReturnTable
+    SELECT WorkshopID
+    FROM Workshop
+    WHERE WorkshopDate = @Day
+    RETURN
+END
+GO
+-- SELECT * FROM dbo.func_workshop_list_by_day('2012-12-10')
+-- GO
+
 
 --TRIGGERS
 CREATE OR ALTER TRIGGER trig_conference_day_within_conference
@@ -522,6 +629,7 @@ BEGIN
         END
 END
 GO
+
 CREATE OR ALTER TRIGGER trig_not_enough_places_workshop
     ON Workshop_Attendee_Reservations
     AFTER INSERT
@@ -567,7 +675,6 @@ GO
 -- GO
 -- proc_new_workshop_attendee_reservation 1, 2, 0
 -- GO
-
 
 CREATE OR ALTER TRIGGER trig_attendee_mentioned_by_customer
     ON Conference_Day_Attendee_Reservations
