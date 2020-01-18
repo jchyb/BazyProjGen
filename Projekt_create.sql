@@ -203,10 +203,6 @@ CREATE OR ALTER PROCEDURE proc_new_conference(@ConferenceName varchar(20),
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF (@StartDate > @EndDate)
-        BEGIN
-            THROW 51000, 'Start time must be after time', 1;
-        end
     INSERT INTO Conference(ConferenceName, StartDate, EndDate) VALUES (@ConferenceName, @StartDate, @EndDate)
 END
 GO
@@ -269,10 +265,6 @@ CREATE OR ALTER PROCEDURE proc_new_workshop(@WorkshopDate date,
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF (@StartTime > @EndTime)
-        BEGIN
-            THROW 51000, 'Start time must be after time', 1;
-        end
     INSERT INTO Workshop(WorkshopDate, StartTime, EndTime, PricePerPerson, AttendeeLimit, WorkshopName)
     VALUES (@WorkshopDate, @StartTime, @EndTime, @PricePerPerson, @AttendeeLimit, @WorkshopName)
 END
@@ -385,7 +377,7 @@ BEGIN
     WHERE ConferenceDate = @ConferenceDay
 
     DECLARE @AttendeeAmount int
-    SELECT @AttendeeAmount = AttendeeAmount
+    SELECT @AttendeeAmount = SUM(AttendeeAmount)
     FROM Conference_Day_Customer_Reservations
     WHERE ConferenceDay = @ConferenceDay
 
@@ -395,38 +387,57 @@ GO
 --print dbo.func_conference_free_places('2012-12-10')
 
 
--- nie mozliwe jak na razie
--- CREATE OR ALTER FUNCTION func_workshop_free_places(@WorkshopDay date)
---     RETURNS int
--- AS
--- BEGIN
---     DECLARE @AttendeeLimit int
---     SELECT @AttendeeLimit = AttendeeLimit
---     FROM Workshop
---     WHERE WorkshopDate = @WorkshopDay
---
---     DECLARE @AttendeeAmount int
---     SELECT @AttendeeAmount = AttendeeAmount
---     FROM Conference_Day_Customer_Reservations
---     WHERE ConferenceDay = @WorkshopDay
---
---     RETURN ISNULL(@AttendeeLimit, 0) - ISNULL(@AttendeeAmount, 0)
--- END
--- GO
+CREATE OR ALTER FUNCTION func_workshop_free_places(@WorkshopDay date)
+    RETURNS int
+AS
+BEGIN
+    DECLARE @WorkshopID int
+    DECLARE @AttendeeLimit int
+    SELECT @AttendeeLimit = AttendeeLimit, @WorkshopID = WorkshopID
+    FROM Workshop
+    WHERE WorkshopDate = @WorkshopDay
 
--- DOESNT WORK
--- CREATE OR ALTER FUNCTION func_workshop_list_for_attendee (@AttendeeID, int)
---     RETURNS TABLE
--- AS
--- BEGIN
---     RETURN (SELECT * FROM Workshop AS w
---      JOIN Workshop_Attendee_Reservations AS war ON w.WorkshopID = war.WorkshopID
---     JOIN Conference_Day_Attendee_Reservations AS cdar)
--- END
+    DECLARE @AttendeeAmount int
+    SELECT @AttendeeAmount = COUNT(WorkshopID)
+    FROM Workshop_Attendee_Reservations
+    WHERE WorkshopID = @WorkshopID
+
+    RETURN ISNULL(@AttendeeLimit, 0) - ISNULL(@AttendeeAmount, 0)
+END
+GO
+--print dbo.func_workshop_free_places('2012-12-10')
+--GO
+
+CREATE OR ALTER FUNCTION func_workshop_list_for_attendee(@AttendeeID int)
+    RETURNS @ReturnTable TABLE
+                         (
+                             WorkshopID     int         NOT NULL,
+                             WorkshopDate   date        NOT NULL,
+                             StartTime      time(0)     NOT NULL,
+                             EndTime        time(0)     NOT NULL,
+                             PricePerPerson int         NOT NULL,
+                             AttendeeLimit  int         NOT NULL,
+                             WorkshopName   varchar(20) NOT NULL
+                         )
+AS
+BEGIN
+    INSERT INTO @ReturnTable
+    SELECT *
+    FROM Workshop AS w
+    WHERE w.WorkshopID IN (SELECT war.WorkshopID
+                           FROM Workshop_Attendee_Reservations AS war
+                                    JOIN Conference_Day_Attendee_Reservations AS cdar
+                                         ON war.ViaConferenceDayAttendeeReservation =
+                                            cdar.ConferenceDayAttendeeReservationID
+                           WHERE cdar.AttendeeID = @AttENDEEID)
+    RETURN;
+END
+GO
+-- SELECT * FROM dbo.func_workshop_list_for_attendee(1)
 -- GO
 
 --TRIGGERS
-CREATE OR ALTER TRIGGER trig_conference_day_withing_conference
+CREATE OR ALTER TRIGGER trig_conference_day_within_conference
     ON Conference_Day
     AFTER INSERT
     AS
@@ -459,7 +470,24 @@ BEGIN
             WHERE (dbo.func_conference_free_places(i.ConferenceDay) < 0)
         )
         BEGIN
-            THROW 51000, 'Not enough places', 1;
+            THROW 51000, 'Not enough places for conference', 1;
+        END
+END
+GO
+
+CREATE OR ALTER TRIGGER trig_not_enough_places_workshop
+    ON Workshop_Attendee_Reservations
+    AFTER INSERT
+    AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS(SELECT *
+              FROM inserted AS i
+                       JOIN Workshop AS w
+                            ON i.WorkshopID = w.WorkshopID
+              WHERE (dbo.func_workshop_free_places(w.WorkshopDate) < 0))
+        BEGIN
+            THROW 51000, 'Not enough places for workshop', 1;
         END
 END
 GO
