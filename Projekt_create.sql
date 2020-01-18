@@ -1,23 +1,54 @@
 -- Created by Vertabelo (http://vertabelo.com)
 -- Last modification date: 2020-01-15 08:20:36.146
 
--- tables
--- Table: Attendees
-IF OBJECT_ID('dbo.Attendees', 'U') IS NOT NULL
+
+--Dropping
+  IF OBJECT_ID('dbo.Workshop_Attendee_Reservations', 'U') IS NOT NULL
+    DROP TABLE dbo.Workshop_Attendee_Reservations
+  IF OBJECT_ID('dbo.Conference_Day_Attendee_Reservations', 'U') IS NOT NULL
+    DROP TABLE dbo.Conference_Day_Attendee_Reservations
+  IF OBJECT_ID('dbo.Conference_Day_Customer_Reservations', 'U') IS NOT NULL
+    DROP TABLE dbo.Conference_Day_Customer_Reservations
+  IF OBJECT_ID('dbo.Workshop', 'U') IS NOT NULL
+    DROP TABLE dbo.Workshop
+  IF OBJECT_ID('dbo.Conference_Day', 'U') IS NOT NULL
+    DROP TABLE dbo.Conference_Day
+  IF OBJECT_ID('dbo.Conference', 'U') IS NOT NULL
+    DROP TABLE dbo.Conference
+  IF OBJECT_ID('dbo.Private_Individuals', 'U') IS NOT NULL
+    DROP TABLE dbo.Private_Individuals
+  IF OBJECT_ID('dbo.Companies', 'U') IS NOT NULL
+    DROP TABLE dbo.Companies
+  IF OBJECT_ID('dbo.Attendees', 'U') IS NOT NULL
     DROP TABLE dbo.Attendees
-CREATE TABLE Attendees
+  IF OBJECT_ID('dbo.Customers', 'U') IS NOT NULL
+    DROP TABLE dbo.Customers
+
+
+-- tables
+-- Table: Workshop_Attendee_Reservations
+
+CREATE TABLE Workshop_Attendee_Reservations
 (
-    AttendeeID int         NOT NULL IDENTITY (1,1),
-    ByCustomer int         NOT NULL,
-    FirstName  varchar(20) NOT NULL,
-    LastName   varchar(20) NOT NULL,
-    IsStudent  bit         NULL,
-    CONSTRAINT Attendees_pk PRIMARY KEY (AttendeeID)
+    ViaConferenceDayAttendeeReservation int NOT NULL,
+    WorkshopID                          int NOT NULL,
+    WasPaid                             bit NOT NULL,
+    CONSTRAINT Workshop_Attendee_Reservations_pk PRIMARY KEY (ViaConferenceDayAttendeeReservation, WorkshopID)
 );
 
+-- Table: Conference_Day_Attendee_Reservations
+
+CREATE TABLE Conference_Day_Attendee_Reservations
+(
+    AttendeeID                          int NOT NULL,
+    ViaConferenceDayCustomerReservation int NOT NULL,
+    ConferenceDayAttendeeReservationID  int NOT NULL IDENTITY (1,1),
+    CONSTRAINT Unique_Reservation UNIQUE (AttendeeID, ViaConferenceDayCustomerReservation),
+    CONSTRAINT Conference_Day_Attendee_Reservations_pk PRIMARY KEY (ConferenceDayAttendeeReservationID)
+);
+
+
 -- Table: Companies
-IF OBJECT_ID('dbo.Companies', 'U') IS NOT NULL
-    DROP TABLE dbo.Companies
 CREATE TABLE Companies
 (
     CustomerID  int         NOT NULL,
@@ -25,9 +56,19 @@ CREATE TABLE Companies
     CONSTRAINT Companies_pk PRIMARY KEY (CustomerID)
 );
 
+-- Table: Conference_Day
+
+CREATE TABLE Conference_Day
+(
+    ConferenceID       int  NOT NULL,
+    ConferenceDate     date NOT NULL,
+    AttendeeLimit      int  NOT NULL,
+    BasePricePerPerson int  NOT NULL,
+    CONSTRAINT Conference_Day_pk PRIMARY KEY (ConferenceDate)
+);
+
 -- Table: Conference
-IF OBJECT_ID('dbo.Conference', 'U') IS NOT NULL
-    DROP TABLE dbo.Conference
+
 CREATE TABLE Conference
 (
     ConferenceID   int         NOT NULL IDENTITY (1,1),
@@ -38,33 +79,9 @@ CREATE TABLE Conference
     CONSTRAINT Conference_pk PRIMARY KEY (ConferenceID)
 );
 
--- Table: Conference_Day
-IF OBJECT_ID('dbo.Conference_Day', 'U') IS NOT NULL
-    DROP TABLE dbo.Conference_Day
-CREATE TABLE Conference_Day
-(
-    ConferenceID       int  NOT NULL,
-    ConferenceDate     date NOT NULL,
-    AttendeeLimit      int  NOT NULL,
-    BasePricePerPerson int  NOT NULL,
-    CONSTRAINT Conference_Day_pk PRIMARY KEY (ConferenceDate)
-);
 
--- Table: Conference_Day_Attendee_Reservations
-IF OBJECT_ID('dbo.Conference_Day_Attendee_Reservations', 'U') IS NOT NULL
-    DROP TABLE dbo.Conference_Day_Attendee_Reservations
-CREATE TABLE Conference_Day_Attendee_Reservations
-(
-    AttendeeID                          int NOT NULL,
-    ViaConferenceDayCustomerReservation int NOT NULL,
-    ConferenceDayAttendeeReservationID  int NOT NULL IDENTITY (1,1),
-    CONSTRAINT Unique_Reservation UNIQUE (AttendeeID, ViaConferenceDayCustomerReservation),
-    CONSTRAINT Conference_Day_Attendee_Reservations_pk PRIMARY KEY (ConferenceDayAttendeeReservationID)
-);
 
 -- Table: Conference_Day_Customer_Reservations
-IF OBJECT_ID('dbo.Conference_Day_Customer_Reservations', 'U') IS NOT NULL
-    DROP TABLE dbo.Conference_Day_Customer_Reservations
 CREATE TABLE Conference_Day_Customer_Reservations
 (
     ConferenceDay         date NOT NULL,
@@ -79,8 +96,6 @@ CREATE TABLE Conference_Day_Customer_Reservations
 );
 
 -- Table: Customers
-IF OBJECT_ID('dbo.Customers', 'U') IS NOT NULL
-    DROP TABLE dbo.Customers
 CREATE TABLE Customers
 (
     CustomerID int        NOT NULL IDENTITY (1,1),
@@ -90,8 +105,6 @@ CREATE TABLE Customers
 );
 
 -- Table: Private_Individuals
-IF OBJECT_ID('dbo.Private_Individuals', 'U') IS NOT NULL
-    DROP TABLE dbo.Private_Individuals
 CREATE TABLE Private_Individuals
 (
     CustomerID int         NOT NULL,
@@ -100,9 +113,19 @@ CREATE TABLE Private_Individuals
     CONSTRAINT Private_Individuals_pk PRIMARY KEY (CustomerID)
 );
 
+-- Table: Attendees
+CREATE TABLE Attendees
+(
+    AttendeeID int         NOT NULL IDENTITY (1,1),
+    ByCustomer int         NOT NULL,
+    FirstName  varchar(20) NOT NULL,
+    LastName   varchar(20) NOT NULL,
+    IsStudent  bit         NULL,
+    CONSTRAINT Attendees_pk PRIMARY KEY (AttendeeID)
+);
+
 -- Table: Workshop
-IF OBJECT_ID('dbo.Workshop', 'U') IS NOT NULL
-    DROP TABLE dbo.Workshop
+
 CREATE TABLE Workshop
 (
     WorkshopID     int         NOT NULL IDENTITY (1,1),
@@ -116,16 +139,7 @@ CREATE TABLE Workshop
     CONSTRAINT Workshop_pk PRIMARY KEY (WorkshopID)
 );
 
--- Table: Workshop_Attendee_Reservations
-IF OBJECT_ID('dbo.Workshop_Attendee_Reservations', 'U') IS NOT NULL
-    DROP TABLE dbo.Workshop_Attendee_Reservations
-CREATE TABLE Workshop_Attendee_Reservations
-(
-    ViaConferenceDayAttendeeReservation int NOT NULL,
-    WorkshopID                          int NOT NULL,
-    WasPaid                             bit NOT NULL,
-    CONSTRAINT Workshop_Attendee_Reservations_pk PRIMARY KEY (ViaConferenceDayAttendeeReservation, WorkshopID)
-);
+
 
 -- foreign keys
 -- Reference: Attendees_Customers (table: Attendees)
@@ -398,6 +412,7 @@ END
 AS Discount
 FROM Conference_Day_Customer_Reservations cdcr
 )
+GO
 
 CREATE OR ALTER VIEW Attendee_Reservation_Value AS
   (SELECT ViaConferenceDayCustomerReservation, cdar.AttendeeID, IsStudent,
@@ -408,6 +423,7 @@ CREATE OR ALTER VIEW Attendee_Reservation_Value AS
   INNER JOIN Conference_Day cd ON cd.ConferenceDate = cdcr.ConferenceDay
   Inner JOIN Customer_Reservation_Discount crd ON crd.CustomerReservationID = cdcr.CustomerReservationID
 )
+GO
 
 CREATE OR ALTER VIEW Conference_Payments AS
   (SELECT CustomerID, ConferenceDay, SUM(ReservationValue) AS ResrvationValue
@@ -416,6 +432,7 @@ CREATE OR ALTER VIEW Conference_Payments AS
   WHERE WasPaid = 1
   GROUP BY CustomerID, ConferenceDay
 )
+GO
 
 --Functions
 CREATE OR ALTER FUNCTION func_workshop_free_places(@WorkshopDay date)
