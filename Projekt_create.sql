@@ -326,9 +326,6 @@ CREATE OR ALTER PROCEDURE proc_cancel_attendee_conference_day_reservation(@Confe
 AS
 BEGIN
     SET NOCOUNT ON;
-    --     DELETE
---     FROM Workshop_Attendee_Reservations
---     WHERE ViaConferenceDayAttendeeReservation = @ConferenceDayAttendeeReservationID
     DELETE
     FROM Conference_Day_Attendee_Reservations
     WHERE ConferenceDayAttendeeReservationID = @ConferenceDayAttendeeReservationID
@@ -704,22 +701,45 @@ GO
 -- proc_new_attendee_conference_day_reservation 2, 1
 -- GO
 
---DOESNT WORK
--- CREATE OR ALTER TRIGGER trig_overlapping_workshops
---     ON Workshop_Attendee_Reservations
---     AFTER INSERT
---     AS
--- BEGIN
---     SET NOCOUNT ON;
---     IF EXISTS(SELECT *
---               FROM inserted AS i
---                        JOIN Workshop_Attendee_Reservations AS war
---                             ON i.ViaConferenceDayAttendeeReservation = war.ViaConferenceDayAttendeeReservation
---               WHERE i.WorkshopID <> war.WorkshopID
---               JOIN Workshop AS wi ON i.WorkshopID = wi.WorkshopID
---         )
--- END
--- GO
+CREATE OR ALTER TRIGGER trig_overlapping_workshops
+    ON Workshop_Attendee_Reservations
+    AFTER INSERT
+    AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @AttendeeID int
+    SELECT @AttendeeID = cdar.AttendeeID
+    FROM Conference_Day_Attendee_Reservations AS cdar
+             JOIN Workshop_Attendee_Reservations AS war
+                  ON ConferenceDayAttendeeReservationID = war.ViaConferenceDayAttendeeReservation
+    IF EXISTS(SELECT *
+              FROM inserted AS i
+                       JOIN Workshop AS w ON i.WorkshopID = w.WorkshopID
+                       JOIN dbo.func_workshop_list_for_attendee(@AttendeeID) AS awl ON w.WorkshopDate = awl.WorkshopDate
+              WHERE awl.WorkshopID <> w.WorkshopID
+                AND (w.StartTime < awl.StartTime AND awl.StartTime < w.EndTime OR
+                     w.StartTime < awl.EndTime AND awl.EndTime < w.EndTime)
+        )
+        BEGIN
+            THROW 51000, 'Workshop overlapping with another workshop.', 1;
+        END
+END
+GO
+
+CREATE OR ALTER TRIGGER trig_cancel_payed_conference
+    ON Conference_Day_Customer_Reservations
+    AFTER UPDATE
+    AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS(SELECT *
+              FROM inserted AS i
+              WHERE i.WasPaid = 1)
+    BEGIN
+        THROW 51000, 'Trying to cancel already paid reservation.', 1;
+    END
+END
+GO
 
 -- End of file.
 
