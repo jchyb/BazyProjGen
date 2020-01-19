@@ -728,13 +728,13 @@ GO
 
 CREATE OR ALTER TRIGGER trig_cancel_payed_conference
     ON Conference_Day_Customer_Reservations
-    AFTER UPDATE
+    AFTER DELETE
     AS
 BEGIN
     SET NOCOUNT ON;
     IF EXISTS(SELECT *
-              FROM inserted AS i
-              WHERE i.WasPaid = 1)
+              FROM deleted AS d
+              WHERE d.WasPaid = 1)
     BEGIN
         THROW 51000, 'Trying to cancel already paid reservation.', 1;
     END
