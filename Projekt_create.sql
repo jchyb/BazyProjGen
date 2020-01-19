@@ -89,9 +89,8 @@ CREATE TABLE Conference_Day_Customer_Reservations
     AttendeeAmount        int  NOT NULL,
     ReservationDate       date NOT NULL,
     WasPaid               bit  NOT NULL,
-    CancellationDate      date NULL,
     CustomerReservationID int  NOT NULL IDENTITY (1,1),
-    CONSTRAINT DateCheck CHECK (CancellationDate IS NULL OR ReservationDate < CancellationDate),
+	  CONSTRAINT UniqueCustomerReservation UNIQUE(ConferenceDay, CustomerID),
     CONSTRAINT Conference_Day_Customer_Reservations_pk PRIMARY KEY (CustomerReservationID)
 );
 
@@ -138,8 +137,6 @@ CREATE TABLE Workshop
     CONSTRAINT WorkshopTimeCheck CHECK (StartTime < EndTime),
     CONSTRAINT Workshop_pk PRIMARY KEY (WorkshopID)
 );
-
-
 
 -- foreign keys
 -- Reference: Attendees_Customers (table: Attendees)
@@ -356,27 +353,6 @@ BEGIN
 END
 GO
 
-
-proc_new_conference 'td', '10-12-12', '12-12-12'
-GO
-proc_new_conference_day 1, '12/10/12', 20, 45;
-GO
-proc_new_company 'tmp', '123456789';
-GO
-proc_new_private_individual N'Stanis³aw', 'Denkowski', '123415512';
-GO
-proc_new_attendee 2, 'Ala', 'Kota', 1;
-GO
-        proc_new_workshop '12/10/12', '10:30:00', '12:00:00', 20,
-        35, 'Programowanie W Grze Minecraft';
-GO
-        proc_new_customer_conference_day_reservation '12/10/12', 2, 3, '12/9/12', 1;
-GO
-proc_new_attendee_conference_day_reservation 1, 1;
-GO
-proc_new_workshop_attendee_reservation 1, 1, 0;
-GO
-
 -- proc_cancel_customer_conference_day_reservation 1
 -- GO
 
@@ -586,7 +562,6 @@ BEGIN
         END
 END
 GO
-
 
 --SELECT * from Attendee_Reservation_Value
 --SELECT * from Conference_Payments
