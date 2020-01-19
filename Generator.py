@@ -7,10 +7,10 @@ faker = Faker("pl_PL")
 Faker.seed("bazy")
 
 def generateCustomers(f,faker):
-    customerAmount = faker.random.randint(30,60)
+    customerAmount = faker.random.randint(20,40)
     pIList = []
     companiesList = []
-    for i in range(1, customerAmount):
+    for i in range(1, customerAmount+1):
         if faker.random.randint(0,1) == 0:
             f.write( "proc_new_private_individual \""+ faker.first_name()+"\", \""+ faker.last_name()+"\", \""+ faker.numerify(text='#########')+"\"\n")
             f.write("GO\n")
@@ -22,7 +22,7 @@ def generateCustomers(f,faker):
     return (customerAmount, pIList, companiesList)
 
 def generateAttendees(f,faker, customerAmount):
-    attendeesAmount = faker.random.randint(6*customerAmount,7*customerAmount)
+    attendeesAmount = faker.random.randint(5*customerAmount,6*customerAmount)
     customerAttendees = [[] for i in range(customerAmount+1)]
     for i in range(1,attendeesAmount):
         customerID = faker.random.randint(1,customerAmount)
@@ -52,7 +52,7 @@ def confDayGen(f,faker,conferenceAmount ,conferenceStart,conferenceEnd):
     for i in range(1,conferenceAmount):
         last = conferenceStart[i]
         while(last <= conferenceEnd[i]):
-            limit = faker.random.randint(40,60)
+            limit = faker.random.randint(20,30)
             conferenceDays.append((last, limit))
             f.write("proc_new_conference_day "+str(i)+", \""+ last.isoformat()+ "\", "+ str(limit) +", "+str(faker.random.randint(50,100)) +"\n")
             f.write("GO\n")
@@ -74,7 +74,8 @@ def genWorkshops(f, faker, conferenceDays):
                 wID +=1
                 dayWorkshops[day[0]].append([time,endTime,faker.random.randint(20,30), wID])
                 f.write("proc_new_workshop \""+ day[0].isoformat()+ "\", \""+ time.isoformat()+
-                      "\", \""+ endTime.isoformat()+"\", "+str(dayWorkshops[day[0]][i][2])+", "+ str(faker.random.randint(20,50))+ "\n")
+                      "\", \""+ endTime.isoformat()+"\", " +str(faker.random.randint(20,50))+", "
+                        +str(dayWorkshops[day[0]][i][2])+", \""+faker.bs()+ "\" \n")
                 f.write("GO\n")
     return dayWorkshops
 
@@ -107,7 +108,7 @@ def genReservations(f,faker,conferenceDays,dayWorkshops, customerAttendees):
             custAttAm = min(custAttAm, day[1]-n)
             n+=custAttAm;
             resTime = (day[0] - datetime.timedelta(days=faker.random.randint(7, 30)))
-            f.write("proc_new_conference_day_customer_reservation \""+ day[0].isoformat()+"\", "+str(customerID)+", "+ str(custAttAm)+
+            f.write("proc_new_customer_conference_day_reservation \""+ day[0].isoformat()+"\", "+str(customerID)+", "+ str(custAttAm)+
                   ", \""+ resTime.isoformat()+ "\", "+"1"+"\n")
             f.write("GO\n")
             for j in range(0,custAttAm):
