@@ -6,7 +6,7 @@ faker = Faker("pl_PL")
 
 Faker.seed("bazy")
 
-def generateCustomers(f,faker):
+def customersGen(f,faker):
     customerAmount = faker.random.randint(20,40)
     pIList = []
     companiesList = []
@@ -21,7 +21,7 @@ def generateCustomers(f,faker):
             companiesList.append(i)
     return (customerAmount, pIList, companiesList)
 
-def generateAttendees(f,faker, customerAmount):
+def attendeesGen(f,faker, customerAmount):
     attendeesAmount = faker.random.randint(5*customerAmount,6*customerAmount)
     customerAttendees = [[] for i in range(customerAmount+1)]
     for i in range(1,attendeesAmount):
@@ -31,7 +31,7 @@ def generateAttendees(f,faker, customerAmount):
         f.write("GO\n")
     return (attendeesAmount, customerAttendees)
 
-def conferenceGenerator(f,faker, maxAmount):
+def genConference(f,faker, maxAmount):
     conferenceAmount = faker.random.randint(110,120)
     conferenceStart = [0]
     conferenceEnd = [0]
@@ -47,7 +47,7 @@ def conferenceGenerator(f,faker, maxAmount):
 
     return (conferenceAmount, conferenceStart, conferenceEnd)
 
-def confDayGen(f,faker,conferenceAmount ,conferenceStart,conferenceEnd):
+def genConfDay(f,faker,conferenceAmount ,conferenceStart,conferenceEnd):
     conferenceDays = []
     for i in range(1,conferenceAmount):
         last = conferenceStart[i]
@@ -124,13 +124,12 @@ def genReservations(f,faker,conferenceDays,dayWorkshops, customerAttendees):
                         wshop[2] -= 1
                         break;
 
+
 f = open("data.sql","w+")
-
-
-(amount, pi, com) = generateCustomers(f,faker)
-(attendeesAmount, customerAttendees) = generateAttendees(f,faker,amount)
-(conferenceAmount, conferenceStart, conferenceEnd) = conferenceGenerator(f,faker, 30)
-conferenceDays = confDayGen(f,faker,conferenceAmount,conferenceStart,conferenceEnd)
+(amount, pi, com) = customersGen(f,faker)
+(attendeesAmount, customerAttendees) = attendeesGen(f,faker,amount)
+(conferenceAmount, conferenceStart, conferenceEnd) = genConference(f,faker, 30)
+conferenceDays = genConfDay(f,faker,conferenceAmount,conferenceStart,conferenceEnd)
 dayWorkshops = genWorkshops(f,faker,conferenceDays)
 genReservations(f,faker,conferenceDays, dayWorkshops,customerAttendees )
 f.flush()

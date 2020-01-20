@@ -392,7 +392,7 @@ GO
 
 CREATE OR ALTER VIEW Attendee_Reservation_Value AS
   (SELECT ViaConferenceDayCustomerReservation, cdar.AttendeeID, IsStudent,
-  (1-Discount)*(0.9*CAST(BasePricePerPerson AS FLOAT) * IsStudent + BasePricePerPerson*(1-IsStudent)) AS ReservationValue
+  (1-Discount)*(0.9*CAST(BasePricePerPerson AS DECIMAL) * IsStudent + BasePricePerPerson*(1-IsStudent)) AS ReservationValue
   FROM Conference_Day_Attendee_Reservations cdar
   INNER JOIN Attendees a ON cdar.AttendeeID = a.AttendeeID
   INNER JOIN Conference_Day_Customer_Reservations cdcr ON cdcr.CustomerReservationID = cdar.ViaConferenceDayCustomerReservation
@@ -402,13 +402,32 @@ CREATE OR ALTER VIEW Attendee_Reservation_Value AS
 GO
 
 CREATE OR ALTER VIEW Conference_Payments AS
-  (SELECT CustomerID, ConferenceDay, SUM(ReservationValue) AS ResrvationValue
+  (SELECT CustomerID, ConferenceDay, SUM(ReservationValue) AS ReservationValue
   FROM Conference_Day_Customer_Reservations cdcr
   INNER JOIN Attendee_Reservation_Value crv ON cdcr.CustomerReservationID = crv.ViaConferenceDayCustomerReservation
   WHERE WasPaid = 1
   GROUP BY CustomerID, ConferenceDay
 )
 GO
+
+--TODO ADD DOCUM
+CREATE OR ALTER VIEW Customer_Payments AS
+  (SELECT CustomerID, SUM(ReservationValue) AS CustomerValue
+  FROM Conference_Payments cp
+  GROUP BY CustomerID
+)
+GO
+--SELECT * FROM Customer_Payments ORDER BY CustomerValue DESC
+--TODO ADD WORKSHOP PAYMENTS
+CREATE OR ALTER VIEW Workshop_Payments AS
+  (SELECT war.WorkshopID, Count(*) * w.PricePerPerson as WorkshopValue
+  FROM Workshop_Attendee_Reservations war
+  INNER JOIN Workshop w ON war.WorkshopID = w.WorkshopID
+  WHERE WasPaid = 1
+  GROUP BY war.WorkshopID,w.PricePerPerson
+)
+GO
+--SELECT * FROM Workshop_Payments
 
 --Functions
 CREATE OR ALTER FUNCTION func_workshop_free_places(@WorkshopDay date)
