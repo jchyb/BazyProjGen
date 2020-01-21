@@ -3,7 +3,6 @@ import datetime
 from faker import Faker
 
 faker = Faker("pl_PL")
-
 Faker.seed("bazy")
 
 def customersGen(f,faker):
@@ -12,7 +11,8 @@ def customersGen(f,faker):
     companiesList = []
     for i in range(1, customerAmount+1):
         if faker.random.randint(0,1) == 0:
-            f.write( "proc_new_private_individual \""+ faker.first_name()+"\", \""+ faker.last_name()+"\", \""+ faker.numerify(text='#########')+"\"\n")
+            f.write( "proc_new_private_individual \""+ faker.first_name()+"\", \"" +
+                     faker.last_name()+"\", \""+ faker.numerify(text='#########')+"\"\n")
             f.write("GO\n")
             pIList.append(i);
         else:
@@ -27,17 +27,18 @@ def attendeesGen(f,faker, customerAmount):
     for i in range(1,attendeesAmount):
         customerID = faker.random.randint(1,customerAmount)
         customerAttendees[customerID].append(i)
-        f.write("proc_new_attendee "+ str(customerID)+ ", \""+ faker.first_name()+ "\", \""+ faker.last_name()+"\", "+ str(faker.random.randint(0,1))+ "\n")
+        f.write("proc_new_attendee "+ str(customerID)+ ", \""+ faker.first_name()+ "\", \"" +
+                faker.last_name()+"\", "+ str(faker.random.randint(0,1))+ "\n")
         f.write("GO\n")
     return (attendeesAmount, customerAttendees)
 
-def genConference(f,faker, maxAmount):
+def genConference(f,faker):
     conferenceAmount = faker.random.randint(110,120)
     conferenceStart = [0]
     conferenceEnd = [0]
     last = datetime.date(2017,1,1)
     for i in range(1,conferenceAmount):
-        last = last + datetime.timedelta(days = faker.random.randint(1,16))
+        last = last + datetime.timedelta(days = faker.random.randint(14,18))
         start = last
         conferenceStart.append(last)
         last = last + datetime.timedelta(days = faker.random.randint(1,5))
@@ -52,9 +53,10 @@ def genConfDay(f,faker,conferenceAmount ,conferenceStart,conferenceEnd):
     for i in range(1,conferenceAmount):
         last = conferenceStart[i]
         while(last <= conferenceEnd[i]):
-            limit = faker.random.randint(20,30)
+            limit = faker.random.randint(40,70)
             conferenceDays.append((last, limit))
-            f.write("proc_new_conference_day "+str(i)+", \""+ last.isoformat()+ "\", "+ str(limit) +", "+str(faker.random.randint(50,100)) +"\n")
+            f.write("proc_new_conference_day "+str(i)+", \""+ last.isoformat()+ "\", " +
+                    str(limit) +", "+str(faker.random.randint(50,100)) +"\n")
             f.write("GO\n")
             last = last + datetime.timedelta(days = faker.random.randint(1,2))
     return conferenceDays
@@ -70,7 +72,8 @@ def genWorkshops(f, faker, conferenceDays):
                 time = faker.time_object()
                 while(time.hour>19): time = faker.time_object()
 
-                endTime = (datetime.datetime.combine(datetime.date.today(), time) + datetime.timedelta(minutes=faker.random.randint(60, 120))).time()
+                endTime = (datetime.datetime.combine(datetime.date.today(), time) +
+                           datetime.timedelta(minutes=faker.random.randint(60, 120))).time()
                 wID +=1
                 dayWorkshops[day[0]].append([time,endTime,faker.random.randint(20,30), wID])
                 f.write("proc_new_workshop \""+ day[0].isoformat()+ "\", \""+ time.isoformat()+
@@ -128,7 +131,7 @@ def genReservations(f,faker,conferenceDays,dayWorkshops, customerAttendees):
 f = open("data.sql","w+")
 (amount, pi, com) = customersGen(f,faker)
 (attendeesAmount, customerAttendees) = attendeesGen(f,faker,amount)
-(conferenceAmount, conferenceStart, conferenceEnd) = genConference(f,faker, 30)
+(conferenceAmount, conferenceStart, conferenceEnd) = genConference(f,faker)
 conferenceDays = genConfDay(f,faker,conferenceAmount,conferenceStart,conferenceEnd)
 dayWorkshops = genWorkshops(f,faker,conferenceDays)
 genReservations(f,faker,conferenceDays, dayWorkshops,customerAttendees )

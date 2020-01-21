@@ -63,7 +63,7 @@ CREATE TABLE Conference_Day
     ConferenceID       int  NOT NULL,
     ConferenceDate     date NOT NULL,
     AttendeeLimit      int  NOT NULL,
-    BasePricePerPerson int  NOT NULL,
+    BasePricePerPerson money  NOT NULL,
     CONSTRAINT Conference_Day_pk PRIMARY KEY (ConferenceDate)
 );
 
@@ -74,7 +74,7 @@ CREATE TABLE Conference
     ConferenceID   int         NOT NULL IDENTITY (1,1),
     StartDate      date        NOT NULL,
     EndDate        date        NOT NULL,
-    ConferenceName varchar(20) NOT NULL,
+    ConferenceName varchar(50) NOT NULL,
     CONSTRAINT ConferenceDateCheck CHECK (StartDate < EndDate),
     CONSTRAINT Conference_pk PRIMARY KEY (ConferenceID)
 );
@@ -89,7 +89,7 @@ CREATE TABLE Conference_Day_Customer_Reservations
     ReservationDate       date NOT NULL,
     WasPaid               bit  NOT NULL,
     CustomerReservationID int  NOT NULL IDENTITY (1,1),
-    CONSTRAINT DateCheck CHECK (CancellationDate IS NULL OR ReservationDate < CancellationDate),
+	  CONSTRAINT UniqueCustomerReservation UNIQUE(ConferenceDay, CustomerID),
     CONSTRAINT Conference_Day_Customer_Reservations_pk PRIMARY KEY (CustomerReservationID)
 );
 
@@ -123,16 +123,15 @@ CREATE TABLE Attendees
 );
 
 -- Table: Workshop
-
 CREATE TABLE Workshop
 (
     WorkshopID     int         NOT NULL IDENTITY (1,1),
     WorkshopDate   date        NOT NULL,
     StartTime      time(0)     NOT NULL,
     EndTime        time(0)     NOT NULL,
-    PricePerPerson int         NOT NULL,
+    PricePerPerson money       NOT NULL,
     AttendeeLimit  int         NOT NULL,
-    WorkshopName   varchar(20) NOT NULL,
+    WorkshopName   varchar(50) NOT NULL,
     CONSTRAINT WorkshopTimeCheck CHECK (StartTime < EndTime),
     CONSTRAINT Workshop_pk PRIMARY KEY (WorkshopID)
 );
@@ -208,8 +207,14 @@ ALTER TABLE Workshop
 GO
 
 
+--INDEXES
+create nonclustered index AttendeesFK_index on Attendees(AttendeeID)
+create nonclustered index CDFK_index on Conference_Day(ConferenceID)
+create nonclustered index WorkshopFK_index on Workshop(WorkshopDate)
+GO
+
 --PROCEDURES
-CREATE OR ALTER PROCEDURE proc_new_conference(@ConferenceName varchar(20),
+CREATE OR ALTER PROCEDURE proc_new_conference(@ConferenceName varchar(50),
                                               @StartDate date,
                                               @EndDate date)
 AS
@@ -273,7 +278,7 @@ CREATE OR ALTER PROCEDURE proc_new_workshop(@WorkshopDate date,
                                             @EndTime time(0),
                                             @PricePerPerson int,
                                             @AttendeeLimit int,
-                                            @WorkshopName varchar(20))
+                                            @WorkshopName varchar(50))
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -450,7 +455,7 @@ GO
 
 CREATE OR ALTER VIEW Conference_Payments AS
 (
-SELECT CustomerID, ConferenceDay, SUM(ReservationValue) AS ResrvationValue
+SELECT CustomerID, ConferenceDay, SUM(ReservationValue) AS ReservationValue
 FROM Conference_Day_Customer_Reservations cdcr
          INNER JOIN Attendee_Reservation_Value crv
                     ON cdcr.CustomerReservationID = crv.ViaConferenceDayCustomerReservation
@@ -459,7 +464,6 @@ GROUP BY CustomerID, ConferenceDay
     )
 GO
 
---TODO ADD DOCUM
 CREATE OR ALTER VIEW Customer_Payments AS
   (SELECT CustomerID, SUM(ReservationValue) AS CustomerValue
   FROM Conference_Payments cp
@@ -467,7 +471,6 @@ CREATE OR ALTER VIEW Customer_Payments AS
 )
 GO
 --SELECT * FROM Customer_Payments ORDER BY CustomerValue DESC
---TODO ADD WORKSHOP PAYMENTS
 CREATE OR ALTER VIEW Workshop_Payments AS
   (SELECT war.WorkshopID, Count(*) * w.PricePerPerson as WorkshopValue
   FROM Workshop_Attendee_Reservations war
@@ -476,9 +479,6 @@ CREATE OR ALTER VIEW Workshop_Payments AS
   GROUP BY war.WorkshopID,w.PricePerPerson
 )
 GO
---SELECT * FROM Workshop_Payments
-
---Functions
 
 --FUNCTIONS
 CREATE OR ALTER FUNCTION func_conference_free_places(@ConferenceDay date)
@@ -528,9 +528,9 @@ CREATE OR ALTER FUNCTION func_workshop_list_for_attendee(@AttendeeID int)
                              WorkshopDate   date,
                              StartTime      time(0),
                              EndTime        time(0),
-                             PricePerPerson int,
+                             PricePerPerson money,
                              AttendeeLimit  int,
-                             WorkshopName   varchar(20)
+                             WorkshopName   varchar(50)
                          )
 AS
 BEGIN
@@ -726,11 +726,6 @@ BEGIN
         END
 END
 GO
-
-
---SELECT * from Attendee_Reservation_Value
---SELECT * from Conference_Payments
---SELECT * from Customer_Reservation_Discount
 
 -- proc_new_attendee 1, 'pan', 'zly', 0
 -- GO
