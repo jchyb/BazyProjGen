@@ -1,6 +1,3 @@
--- Created by Vertabelo (http://vertabelo.com)
--- Last modification date: 2020-01-15 08:20:36.146
-
 
 --Dropping
   IF OBJECT_ID('dbo.Workshop_Attendee_Reservations', 'U') IS NOT NULL
@@ -24,10 +21,8 @@
   IF OBJECT_ID('dbo.Customers', 'U') IS NOT NULL
     DROP TABLE dbo.Customers
 
-
 -- tables
 -- Table: Workshop_Attendee_Reservations
-
 CREATE TABLE Workshop_Attendee_Reservations
 (
     ViaConferenceDayAttendeeReservation int NOT NULL,
@@ -37,7 +32,6 @@ CREATE TABLE Workshop_Attendee_Reservations
 );
 
 -- Table: Conference_Day_Attendee_Reservations
-
 CREATE TABLE Conference_Day_Attendee_Reservations
 (
     AttendeeID                          int NOT NULL,
@@ -377,31 +371,6 @@ BEGIN
     WHERE ViaConferenceDayAttendeeReservation = @ConferenceDayAttendeeReservationID
 END
 GO
--- dbo.proc_add_workshop_payment 1
--- GO
-
-proc_new_conference 'td', '10-12-12', '12-12-12'
-GO
-proc_new_conference_day 1, '12/10/12', 20, 45;
-GO
-proc_new_company 'tmp', '123456789';
-GO
-proc_new_private_individual N'Stanis³aw', 'Denkowski', '123415512';
-GO
-proc_new_attendee 2, 'Ala', 'Kota', 1;
-GO
-        proc_new_workshop '12/10/12', '10:30:00', '12:00:00', 20,
-        35, 'Programowanie W Grze Minecraft';
-GO
-        proc_new_customer_conference_day_reservation '12/10/12', 2, 3, '12/9/12', 1;
-GO
-proc_new_attendee_conference_day_reservation 1, 1;
-GO
-proc_new_workshop_attendee_reservation 1, 1, 0;
-GO
-
--- proc_cancel_customer_conference_day_reservation 1
--- GO
 
 --FUNCTIONS
 CREATE OR ALTER FUNCTION func_conference_free_places(@ConferenceDay date)
@@ -426,7 +395,7 @@ GO
 
 --Views
 CREATE OR ALTER VIEW Customer_Reservation_Discount AS
-(SELECT CustomerReservationID,DATEDIFF(day, ReservationDate, ConferenceDay) as diff,
+(SELECT CustomerReservationID,DATEDIFF(day, ReservationDate, ConferenceDay) as DayDiffrence,
 CASE
 	WHEN DATEDIFF(day, ReservationDate, ConferenceDay) >= 14 THEN 0.1
 	WHEN DATEDIFF(day , Reservationdate, ConferenceDay) >=7 THEN 0.05
@@ -546,8 +515,6 @@ BEGIN
     RETURN;
 END
 GO
--- SELECT * FROM dbo.func_workshop_list_for_attendee(1)
--- GO
 
 CREATE OR ALTER FUNCTION func_conference_day_attendees(@ConferenceDate date)
     RETURNS @ReturnTable TABLE
@@ -565,8 +532,6 @@ BEGIN
     RETURN;
 END
 GO
--- SELECT * FROM dbo.func_conference_day_attendees('2012-12-10')
--- GO
 
 CREATE OR ALTER FUNCTION func_conference_days(@ConferenceID int)
     RETURNS @ReturnTable TABLE
@@ -603,8 +568,6 @@ BEGIN
     RETURN;
 END
 GO
---SELECT * FROM dbo.func_workshop_list_by_conference(1)
---GO
 
 CREATE OR ALTER FUNCTION func_workshop_list_by_day(@Day date)
     RETURNS @ReturnTable TABLE
@@ -702,12 +665,6 @@ BEGIN
         END
 END
 GO
--- proc_new_conference_day 1, '11-11-2012', 20, 45;
--- GO
--- proc_new_workshop '11-11-2012', '10:30:00', '12:00:00', 20, 35, 'Programowanie W Minecraft'
--- GO
--- proc_new_workshop_attendee_reservation 1, 2, 0
--- GO
 
 CREATE OR ALTER TRIGGER trig_attendee_mentioned_by_customer
     ON Conference_Day_Attendee_Reservations
@@ -727,10 +684,6 @@ BEGIN
 END
 GO
 
--- proc_new_attendee 1, 'pan', 'zly', 0
--- GO
--- proc_new_attendee_conference_day_reservation 2, 1
--- GO
 
 CREATE OR ALTER TRIGGER trig_overlapping_workshops
     ON Workshop_Attendee_Reservations

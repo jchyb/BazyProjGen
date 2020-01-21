@@ -89,7 +89,7 @@ def genReservations(f,faker,conferenceDays,dayWorkshops, customerAttendees):
 
     resCusID = 0
     resAttID = 0
-    for i in range(1,len(conferenceDays)):
+    for i in range(0,len(conferenceDays)):
         day = conferenceDays[i]
         n = 0
         customersUsed = set();
@@ -115,7 +115,6 @@ def genReservations(f,faker,conferenceDays,dayWorkshops, customerAttendees):
                   ", \""+ resTime.isoformat()+ "\", "+"1"+"\n")
             f.write("GO\n")
             for j in range(0,custAttAm):
-                #print(customerAttendees)
                 att = customerAttendees[customerID][j]
                 f.write("proc_new_attendee_conference_day_reservation "+ str(att)+ ", "+ str(resCusID) +"\n")
                 f.write("GO\n")
@@ -125,10 +124,10 @@ def genReservations(f,faker,conferenceDays,dayWorkshops, customerAttendees):
                         f.write("proc_new_workshop_attendee_reservation "+str(resAttID) +", "+str(wshop[3])+", "+"1"+"\n")
                         f.write("GO\n")
                         wshop[2] -= 1
-                        break;
+                        break
 
 
-f = open("data.sql","w+")
+f = open("data.sql", "w+")
 (amount, pi, com) = customersGen(f,faker)
 (attendeesAmount, customerAttendees) = attendeesGen(f,faker,amount)
 (conferenceAmount, conferenceStart, conferenceEnd) = genConference(f,faker)
